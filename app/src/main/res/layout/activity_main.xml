@@ -8,16 +8,60 @@
 
     <android.support.design.widget.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:theme="@style/AppTheme.AppBarOverlay">
+        android:layout_height="wrap_content">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@color/outlook_blue"
+                android:orientation="horizontal"
+                android:padding="@dimen/agenda_item_spacing">
 
-        <android.support.v7.widget.Toolbar
-            android:id="@+id/toolbar"
+                <ImageView
+                    android:id="@+id/imageView2"
+                    android:layout_width="0px"
+                    android:layout_height="match_parent"
+                    android:layout_margin="@dimen/agenda_item_spacing"
+                    android:layout_weight="1"
+                    android:padding="5dp"
+                    android:src="@drawable/menu_white"
+
+                    />
+
+                <TextView
+                    android:id="@+id/CalendarHeaderMonth"
+                    android:layout_width="0px"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="@dimen/agenda_item_spacing"
+                    android:layout_weight="9"
+                    android:text="May"
+                    android:textColor="@android:color/white"
+                    android:textSize="11pt" />
+
+                <ImageView
+                    android:id="@+id/imageView3"
+                    android:layout_width="0px"
+                    android:layout_height="match_parent"
+                    android:layout_margin="@dimen/agenda_item_spacing"
+                    android:layout_weight="1"
+                    android:padding="5dp"
+                    android:src="@drawable/menu_borders_white" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/CalendarHeader"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:background="@color/outlook_blue">
+            </LinearLayout>
+
+        <android.support.v7.widget.RecyclerView
+            android:id="@+id/CalendarView"
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:background="?attr/colorPrimary"
-            app:popupTheme="@style/AppTheme.PopupOverlay" />
-
+            android:layout_weight="1"
+            android:layout_height="0dp"
+            android:background="@android:color/white" />
     </android.support.design.widget.AppBarLayout>
 
     <include layout="@layout/content_main" />
@@ -28,6 +72,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="@dimen/fab_margin"
-        app:srcCompat="@android:drawable/ic_dialog_email" />
+        app:backgroundTint="@color/outlook_blue"
+        app:srcCompat="@drawable/plus_white" />
 
 </android.support.design.widget.CoordinatorLayout>
