@@ -1,13 +1,15 @@
 package com.unique.domain.outlookie.agenda;
 
 import com.unique.domain.outlookie.core.User;
+import com.unique.domain.outlookie.storage.Event;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
 public class AgendaEvent implements AgendaItem {
-    final UUID id;
+    final Long id;
     LocalDateTime startTimeDate;
     LocalDateTime endTimeDate;
     String title;
@@ -17,7 +19,7 @@ public class AgendaEvent implements AgendaItem {
     User creator;
     List<User> participants;
 
-    public AgendaEvent(UUID id, LocalDateTime startTimeDate, LocalDateTime endTimeDate, String title, String description, String location, AgendaEventIcon icon, User creator, List<User> participants) {
+    public AgendaEvent(Long id, LocalDateTime startTimeDate, LocalDateTime endTimeDate, String title, String description, String location, AgendaEventIcon icon, User creator, List<User> participants) {
         this.id = id;
         this.startTimeDate = startTimeDate;
         this.endTimeDate = endTimeDate;
@@ -29,7 +31,19 @@ public class AgendaEvent implements AgendaItem {
         this.participants = participants;
     }
 
-    public UUID getId() {
+    public AgendaEvent(Event event) {
+        this.id = event.getEventId();
+        this.startTimeDate = event.getStartDateTime();
+        this.endTimeDate = event.getEndDateTime();
+        this.title = event.getTitle();
+        this.description = event.getDescription();
+        this.location = event.getLocation();
+        this.icon = new AgendaEventIcon(event.getIconColor());
+        // TODO: this.creator
+        // TODO: this.participants
+    }
+
+    public Long getId() {
         return id;
     }
 
@@ -66,7 +80,7 @@ public class AgendaEvent implements AgendaItem {
     }
 
     @Override
-    public LocalDateTime getDateTime() {
-        return getStartTimeDate();
+    public LocalDate getDate() {
+        return getStartTimeDate().toLocalDate();
     }
 }

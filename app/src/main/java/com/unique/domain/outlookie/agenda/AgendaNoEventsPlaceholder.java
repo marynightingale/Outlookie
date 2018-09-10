@@ -1,16 +1,17 @@
 package com.unique.domain.outlookie.agenda;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public class AgendaNoEventsPlaceholder implements AgendaItem {
-    private LocalDateTime dateTime;
+    private LocalDate date;
 
-    public AgendaNoEventsPlaceholder(LocalDateTime dateTime) {
-        this.dateTime = dateTime;
+    public AgendaNoEventsPlaceholder(LocalDate date) {
+        this.date = date;
     }
 
     @Override
-    public LocalDateTime getDateTime() {
-        return dateTime;
+    public LocalDate getDate() {
+        return date;
     }
 }

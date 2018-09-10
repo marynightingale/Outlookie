@@ -1,5 +1,6 @@
 package com.unique.domain.outlookie.calendar;
 
+import android.arch.persistence.room.util.StringUtil;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
@@ -16,35 +17,35 @@ import android.widget.TextView;
 
 import com.unique.domain.outlookie.R;
 import com.unique.domain.outlookie.core.Circle;
+import com.unique.domain.outlookie.core.DateUtils;
 
 import java.time.DayOfWeek;
+import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+
+import static com.unique.domain.outlookie.core.DateUtils.DAYS_IN_A_WEEK;
 
 public class CalendarAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
-    private static final int DAYS_IN_A_WEEK = 7;
     private static final int ROWS_IN_CALENDAR = 2;
 
     private int weekCount;
-    private LocalDateTime selectedDate;
+    private LocalDate selectedDate;
     private ViewHolder selectedDateViewHolder;
 
-    private final LocalDateTime initialDate;
+    private final LocalDate initialDate;
     private final OnItemClickListener globalListener;
 
-    public CalendarAdapter(LocalDateTime initialDate, OnItemClickListener globalListener) {
+    public CalendarAdapter(LocalDate initialDate, OnItemClickListener globalListener) {
         this.weekCount = ROWS_IN_CALENDAR;
-
-        // from documentation: the day-of-week, from 1 (Monday) to 7 (Sunday)
-        int dayOfWeek = initialDate.getDayOfWeek().getValue();
-        LocalDateTime initialFirstDisplayDate = initialDate.minusDays(dayOfWeek % DAYS_IN_A_WEEK);
-        this.initialDate = initialFirstDisplayDate;
-
+        this.initialDate = DateUtils.getFirstDayOfTheWeek(initialDate);
         this.globalListener = globalListener;
     }
 
     public interface OnItemClickListener {
-        void onItemClick(LocalDateTime date);
+        void onItemClick(LocalDate date);
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
@@ -65,17 +66,16 @@ public class CalendarAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
             this.unselectedCellBackground = Circle.draw(50, unselectedDateBackgroundColor);
         }
 
-        public void set(LocalDateTime startDate, final OnItemClickListener listener) {
+        public void set(LocalDate startDate, final OnItemClickListener listener) {
             for (int i = 0; i < DAYS_IN_A_WEEK; i++) {
                 TextView cell = (TextView)row.getChildAt(i);
-                LocalDateTime cellDate = startDate.plusDays(i);
+                LocalDate cellDate = startDate.plusDays(i);
 
-                cell.setText(String.valueOf(cellDate.getDayOfMonth()));
+                cell.setText(String.format("%1$2s", String.valueOf(cellDate.getDayOfMonth())));
 
                 cell.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        toggle(cellDate.getDayOfWeek());
                         listener.onItemClick(cellDate);
                     }
                 });
@@ -112,23 +112,32 @@ public class CalendarAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
         // position = row number = number of weeks from the start
-        LocalDateTime firstDisplayDate = initialDate.plusWeeks(position);
+        LocalDate firstDisplayDate = initialDate.plusWeeks(position);
         ViewHolder viewHolder = (ViewHolder) holder;
         viewHolder.set(firstDisplayDate, new CalendarAdapter.OnItemClickListener() {
             @Override
-            public void onItemClick(LocalDateTime date) {
-                if (selectedDateViewHolder != null) {
-                    selectedDateViewHolder.toggle(selectedDate.getDayOfWeek());
-                }
+            public void onItemClick(LocalDate date) {
                 setSelectedDate(viewHolder, date);
                 globalListener.onItemClick(date);
             }
         });
     }
 
-    public void setSelectedDate(ViewHolder viewHolder, LocalDateTime date) {
+    public int getPositionByDate(LocalDate date) {
+        LocalDate firstDisplayDate = DateUtils.getFirstDayOfTheWeek(date);
+        return (int) ChronoUnit.WEEKS.between(initialDate, firstDisplayDate);
+    }
+
+    public void setSelectedDate(ViewHolder viewHolder, LocalDate date) {
+        if (selectedDate != null && selectedDate.equals(date)) {
+            return;
+        }
+        if (selectedDate != null && selectedDateViewHolder != null) {
+            selectedDateViewHolder.toggle(selectedDate.getDayOfWeek());
+        }
         selectedDateViewHolder = viewHolder;
         selectedDate = date;
+        selectedDateViewHolder.toggle(selectedDate.getDayOfWeek());
     }
 
     @Override

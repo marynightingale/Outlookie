@@ -1,16 +1,17 @@
 package com.unique.domain.outlookie.agenda;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public class AgendaTitle implements AgendaItem {
-    private LocalDateTime dateTime;
+    private LocalDate date;
 
-    public AgendaTitle(LocalDateTime dateTime) {
-        this.dateTime = dateTime;
+    public AgendaTitle(LocalDate date) {
+        this.date = date;
     }
 
-    public LocalDateTime getDateTime() {
-        return dateTime;
+    public LocalDate getDate() {
+        return date;
     }
 }
 

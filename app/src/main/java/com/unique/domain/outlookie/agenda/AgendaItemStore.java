@@ -2,29 +2,44 @@ package com.unique.domain.outlookie.agenda;
 
 import android.support.annotation.NonNull;
 
+import com.unique.domain.outlookie.core.DateUtils;
+import com.unique.domain.outlookie.storage.Event;
+
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.List;
-import java.util.Optional;
 
 public class AgendaItemStore {
 
     private List<AgendaItem> agendaItems;
 
-    public AgendaItemStore(@NonNull List<AgendaEvent> events) {
+    public AgendaItemStore(List<Event> events) {
+        updateEvents(events);
+    }
+
+    public void updateEvents(List<Event> events) {
         agendaItems = new ArrayList<>();
-        events.sort(Comparator.comparing(AgendaEvent::getStartTimeDate));
+
+        if (events == null) {
+            events = Collections.EMPTY_LIST;
+        }
 
         // this should really be a lazy list that can scroll forever, but alas
-        // My cheap solution would be to start from the oldest event instead
-        LocalDateTime firstDate;
+        // My cheap solution would be to start from the week of the oldest event instead
+        LocalDate firstDate;
         if (events.isEmpty()) {
-            firstDate = LocalDateTime.now();
+            firstDate = LocalDate.now();
         }
         else {
-            firstDate = events.get(0).getStartTimeDate();
+            events.sort(Comparator.comparing(Event::getStartDateTime));
+            firstDate = events.get(0).getStartDateTime().toLocalDate();
         }
+
+        firstDate = DateUtils.getFirstDayOfTheWeek(firstDate);
 
         addAgendaTitle(agendaItems, firstDate);
 
@@ -43,45 +58,44 @@ public class AgendaItemStore {
         return agendaItems.size();
     }
 
-    // a little recursion to impress the interviewer ;)
-    private void addEventsAsAgendaItems(List<AgendaEvent> events, int position) {
-        if (position == events.size()) {
-            return;
-        }
-        AgendaItem agendaItem = agendaItems.get(agendaItems.size() - 1);
-
-        LocalDateTime currentDateTime = events.get(position).getStartTimeDate();
-        LocalDateTime previousDateTime = agendaItem.getDateTime();
-
-        if (isOnSameDay(previousDateTime, currentDateTime)) {
-            agendaItems.add(events.get(position));
-            addEventsAsAgendaItems(events, position+1);
-        }
-        else {
-            if (agendaItem instanceof AgendaTitle) {
-                addEventPlaceholder(agendaItems, previousDateTime);
-            }
-            addAgendaTitle(agendaItems, previousDateTime.plusDays(1));
-            addEventsAsAgendaItems(events, position);
-        }
-    }
-
-    public int getPositionOfAgendaTitle(LocalDateTime date) {
+    public int getPositionOfAgendaTitle(LocalDate date) {
         // if date is before the first existing one, return the top item
-        LocalDateTime firstDate = agendaItems.get(0).getDateTime();
-        if (firstDate.isAfter(date) &&
-                !isOnSameDay(firstDate, date)) {
+        LocalDate firstDate = agendaItems.get(0).getDate();
+        if (firstDate.isAfter(date)) {
             return 0;
         }
 
         for (int i = 0; i < size(); i++) {
             AgendaItem item = agendaItems.get(i);
-            if (item instanceof AgendaTitle && isOnSameDay(item.getDateTime(), date)) {
+            if (item instanceof AgendaTitle && item.getDate().isEqual(date)) {
                 return i;
             }
         }
         // no matching titles found - return the very last one
-        return size();
+        return size()-1;
+    }
+
+    private void addEventsAsAgendaItems(List<Event> events, int position) {
+        if (position == events.size()) {
+            return;
+        }
+        AgendaItem agendaItem = agendaItems.get(agendaItems.size() - 1);
+
+        LocalDateTime currentDateTime = events.get(position).getStartDateTime();
+        LocalDate previousDate = agendaItem.getDate();
+
+        if (previousDate.isEqual(currentDateTime.toLocalDate())) {
+            AgendaEvent agendaEvent = new AgendaEvent(events.get(position));
+            agendaItems.add(agendaEvent);
+            addEventsAsAgendaItems(events, position+1);
+        }
+        else {
+            if (agendaItem instanceof AgendaTitle) {
+                addEventPlaceholder(agendaItems, previousDate);
+            }
+            addAgendaTitle(agendaItems, previousDate.plusDays(1));
+            addEventsAsAgendaItems(events, position);
+        }
     }
 
     private static boolean isOnSameDay(LocalDateTime dateTime, LocalDateTime otherDateTime) {
@@ -89,11 +103,11 @@ public class AgendaItemStore {
                 (dateTime.getDayOfYear() == otherDateTime.getDayOfYear());
     }
 
-    private static void addAgendaTitle(List<AgendaItem> agendaItems, LocalDateTime dateTime) {
-        agendaItems.add(new AgendaTitle(dateTime));
+    private static void addAgendaTitle(List<AgendaItem> agendaItems, LocalDate date) {
+        agendaItems.add(new AgendaTitle(date));
     }
 
-    private static void addEventPlaceholder(List<AgendaItem> agendaItems, LocalDateTime dateTime) {
-        agendaItems.add(new AgendaNoEventsPlaceholder(dateTime));
+    private static void addEventPlaceholder(List<AgendaItem> agendaItems, LocalDate date) {
+        agendaItems.add(new AgendaNoEventsPlaceholder(date));
     }
 }

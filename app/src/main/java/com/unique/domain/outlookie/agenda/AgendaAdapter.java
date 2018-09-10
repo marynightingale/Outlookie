@@ -1,7 +1,5 @@
 package com.unique.domain.outlookie.agenda;
 
-import android.graphics.Color;
-import android.graphics.drawable.Drawable;
 import android.support.annotation.NonNull;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
@@ -12,8 +10,11 @@ import android.widget.TextView;
 
 import com.unique.domain.outlookie.R;
 import com.unique.domain.outlookie.core.Circle;
+import com.unique.domain.outlookie.storage.Event;
+import com.unique.domain.outlookie.storage.EventViewModel;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -24,7 +25,7 @@ public class AgendaAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
     final int VIEW_TYPE_EVENT = 1;
     final int VIEW_TYPE_NO_EVENT = 2;
 
-    private AgendaItemStore agendaItemStore;
+    private AgendaItemStore itemStore;
 
     public class AgendaTitleViewHolder extends RecyclerView.ViewHolder {
         private TextView title;
@@ -34,7 +35,7 @@ public class AgendaAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
             title = itemView.findViewById(R.id.title);
         }
 
-        public void setTitle(LocalDateTime dateTime) {
+        public void setTitle(LocalDate dateTime) {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEEE, MMMM d");
             title.setText(dateTime.format(formatter));
         }
@@ -101,11 +102,25 @@ public class AgendaAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
         }
     }
 
-    // Provide a suitable constructor (depends on the kind of dataset)
-    public AgendaAdapter(List<AgendaEvent> events) {
-        agendaItemStore = new AgendaItemStore(events);
+    public AgendaAdapter(AgendaItemStore itemStore) {
+        if (itemStore == null) {
+            throw new IllegalArgumentException("Agenda item sotre can't be null");
+        }
+        this.itemStore = itemStore;
     }
 
+    public void updateEvents(List<Event> events) {
+        this.itemStore.updateEvents(events);
+        notifyDataSetChanged();
+    }
+
+    public AgendaItem get(int position) {
+        return itemStore.get(position);
+    }
+
+    public int getPositionOfAgendaTitle(LocalDate date) {
+        return itemStore.getPositionOfAgendaTitle(date);
+    }
 
     @NonNull
     @Override
@@ -133,14 +148,14 @@ public class AgendaAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
 
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
-        AgendaItem agendaItem = agendaItemStore.get(position);
+        AgendaItem agendaItem = itemStore.get(position);
 
         switch (getItemViewType(position)) {
 
             case VIEW_TYPE_TITLE:
                 AgendaTitle agendaTitle = (AgendaTitle) agendaItem;
                 AgendaTitleViewHolder titleViewHolder = (AgendaTitleViewHolder) holder;
-                titleViewHolder.setTitle(agendaTitle.getDateTime());
+                titleViewHolder.setTitle(agendaTitle.getDate());
                 break;
             case VIEW_TYPE_EVENT:
                 AgendaEvent event = (AgendaEvent) agendaItem;
@@ -154,12 +169,12 @@ public class AgendaAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
 
     @Override
     public int getItemCount() {
-        return agendaItemStore.size();
+        return itemStore.size();
     }
 
     @Override
     public int getItemViewType(final int position) {
-        AgendaItem agendaItem = agendaItemStore.get(position);
+        AgendaItem agendaItem = itemStore.get(position);
         if (agendaItem instanceof AgendaTitle) {
             return VIEW_TYPE_TITLE;
         }
@@ -169,7 +184,5 @@ public class AgendaAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
         return VIEW_TYPE_NO_EVENT;
     }
 
-    public AgendaItemStore getAgendaItemStore() {
-        return agendaItemStore;
-    }
+
 }

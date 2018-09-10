@@ -1,16 +1,18 @@
 package com.unique.domain.outlookie;
 
+import android.arch.lifecycle.Observer;
+import android.arch.lifecycle.ViewModelProviders;
 import android.graphics.Color;
-import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
-import android.graphics.drawable.ShapeDrawable;
 import android.os.Bundle;
+import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.DividerItemDecoration;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -19,42 +21,58 @@ import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import com.unique.domain.outlookie.agenda.AgendaAdapter;
-import com.unique.domain.outlookie.agenda.AgendaEvent;
-import com.unique.domain.outlookie.agenda.AgendaEventIcon;
+import com.unique.domain.outlookie.agenda.AgendaItem;
+import com.unique.domain.outlookie.agenda.AgendaItemStore;
 import com.unique.domain.outlookie.calendar.CalendarAdapter;
 import com.unique.domain.outlookie.calendar.CalendarHeader;
-import com.unique.domain.outlookie.core.User;
+import com.unique.domain.outlookie.storage.Event;
+import com.unique.domain.outlookie.storage.EventDatabase;
+import com.unique.domain.outlookie.storage.EventViewModel;
 
+import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity {
 
+    private EventViewModel eventViewModel;
+
     private RecyclerView calendarRecyclerView;
+    private CalendarAdapter calendarAdapter;
+
     private RecyclerView agendaRecyclerView;
-    private LinearLayoutManager agendaLayoutManager;
     private AgendaAdapter agendaAdapter;
+    private LinearLayoutManager agendaLayoutManager;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-//        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-//        setSupportActionBar(toolbar);
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
+        FloatingActionButton floatingActionButton = findViewById(R.id.fab);
+        floatingActionButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
+                // TODO: pop up dialog
+                Event event = new Event(LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), "Ad Hoc Meeting", "desc", "Focus Room", Color.parseColor("#AD7A99"));
+                eventViewModel.insert(event);
+            }
+        });
+
+        eventViewModel = ViewModelProviders.of(this).get(EventViewModel.class);
+        eventViewModel.getEvents().observe(this, new Observer<List<Event>>() {
+            @Override
+            public void onChanged(@Nullable final List<Event> events) {
+                // Update the cached copy of the words in the adapter.
+                agendaAdapter.updateEvents(events);
             }
         });
 
         setUpCalendar();
         setUpAgenda();
+
     }
 
     @Override
@@ -104,39 +122,21 @@ public class MainActivity extends AppCompatActivity {
 
         GradientDrawable selectedCellBackground = (GradientDrawable) getResources().getDrawable(R.drawable.calendar_circle_cell, getTheme());
 
-        // specify an adapter (see also next example)
-        CalendarAdapter adapter = new CalendarAdapter(
-                LocalDateTime.now(),
-                new CalendarAdapter.OnItemClickListener() {
-                @Override public void onItemClick(LocalDateTime date) {
-                    int position = agendaAdapter.getAgendaItemStore().getPositionOfAgendaTitle(date);
-                    agendaLayoutManager.scrollToPositionWithOffset(position, 0);
-                    }
+        // specify an adapter
+        calendarAdapter = new CalendarAdapter(
+                LocalDate.now(), new CalendarAdapter.OnItemClickListener() {
+                    @Override public void onItemClick(LocalDate date) {
+                        int position = agendaAdapter.getPositionOfAgendaTitle(date);
+                        agendaLayoutManager.scrollToPositionWithOffset(position, 0);
+                        }
                 });
-        calendarRecyclerView.setAdapter(adapter);
+        calendarRecyclerView.setAdapter(calendarAdapter);
 
         DividerItemDecoration dividerItemDecoration = new DividerItemDecoration(
                 calendarRecyclerView.getContext(),
                 layoutManager.getOrientation()
         );
         calendarRecyclerView.addItemDecoration(dividerItemDecoration);
-
-        // Select today after layout finished drawing
-        calendarRecyclerView.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
-            @Override
-            public void onGlobalLayout() {
-                //At this point the layout is complete
-                LocalDateTime date = LocalDateTime.now();
-                CalendarAdapter.ViewHolder viewHolder = (CalendarAdapter.ViewHolder) calendarRecyclerView.findViewHolderForAdapterPosition(0);
-
-                // TODO: remove logic duplication
-                viewHolder.toggle(date.getDayOfWeek());
-                adapter.setSelectedDate(viewHolder, date);
-
-                // needs to be done once at the start, so now we unsubscribe
-                calendarRecyclerView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
-            }
-        });
     }
 
     public void setUpAgenda() {
@@ -151,7 +151,8 @@ public class MainActivity extends AppCompatActivity {
         agendaRecyclerView.setLayoutManager(agendaLayoutManager);
 
         // specify an adapter (see also next example)
-        agendaAdapter = new AgendaAdapter(getEvents());
+        AgendaItemStore itemStore = new AgendaItemStore(this.eventViewModel.getEvents().getValue());
+        agendaAdapter = new AgendaAdapter(itemStore);
         agendaRecyclerView.setAdapter(agendaAdapter);
 
         DividerItemDecoration dividerItemDecoration = new DividerItemDecoration(
@@ -159,19 +160,42 @@ public class MainActivity extends AppCompatActivity {
                 agendaLayoutManager.getOrientation()
         );
         agendaRecyclerView.addItemDecoration(dividerItemDecoration);
+
+        agendaRecyclerView.setOnScrollChangeListener(new View.OnScrollChangeListener() {
+            @Override
+            public void onScrollChange(View view, int i, int i1, int i2, int i3) {
+                int firstVisibleItemPosition = agendaLayoutManager.findFirstVisibleItemPosition();
+                AgendaItem item = agendaAdapter.get(firstVisibleItemPosition);
+                setSelectedDateInCalendar(item.getDate());
+            }
+        });
+
+        // Move agenda and calendar to today's date after activity is loaded
+        // Select today after layout finished drawing
+
+        agendaRecyclerView.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                //At this point the layout is complete
+                LocalDate date = LocalDate.now();
+                int position = agendaAdapter.getPositionOfAgendaTitle(date);
+
+                AgendaItem item = agendaAdapter.get(position);
+                if (!item.getDate().equals(date)) { // ugly hack, because data doesn't completely load still
+                    return;
+                }
+
+                agendaLayoutManager.scrollToPositionWithOffset(position, 0);
+
+                // needs to be done once at the start, so now we unsubscribe
+                agendaRecyclerView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+            }
+        });
+
     }
 
-    private List<AgendaEvent> getEvents() {
-        List<AgendaEvent> events = new ArrayList<>();
-
-        events.add(new AgendaEvent(UUID.randomUUID(), LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), "meeting1", "desc", "Golden Gate", new AgendaEventIcon(Color.parseColor("#AD7A99")), new User(), null));
-        events.add(new AgendaEvent(UUID.randomUUID(), LocalDateTime.now().minusHours(1), LocalDateTime.now(), "meeting2", "desc", null, new AgendaEventIcon(Color.parseColor("#4E937A")), new User(), null));
-        events.add(new AgendaEvent(UUID.randomUUID(), LocalDateTime.now().plusDays(1), LocalDateTime.now().plusDays(1).plusHours(1), "meeting3", "desc", "Blue Bottle", new AgendaEventIcon(Color.parseColor("#414770")), new User(), null));
-        events.add(new AgendaEvent(UUID.randomUUID(), LocalDateTime.now().plusDays(4), LocalDateTime.now().plusDays(4).plusHours(1).plusMinutes(30), "meeting4", "desc", null, new AgendaEventIcon(Color.parseColor("#414770")), new User(), null));
-        events.add(new AgendaEvent(UUID.randomUUID(), LocalDateTime.now().plusDays(6), LocalDateTime.now().plusDays(4).plusHours(1).plusMinutes(30), "meeting4", "desc", null, new AgendaEventIcon(Color.parseColor("#4E937A")), new User(), null));
-        events.add(new AgendaEvent(UUID.randomUUID(), LocalDateTime.now().plusDays(7), LocalDateTime.now().plusDays(4).plusHours(1).plusMinutes(30), "meeting4", "desc", null, new AgendaEventIcon(Color.parseColor("#559CAD")), new User(), null));
-        events.add(new AgendaEvent(UUID.randomUUID(), LocalDateTime.now().plusDays(9), LocalDateTime.now().plusDays(4).plusHours(1).plusMinutes(30), "meeting4", "desc", null, new AgendaEventIcon(Color.parseColor("#559CAD")), new User(), null));
-
-        return events;
+    private void setSelectedDateInCalendar(LocalDate date) {
+        CalendarAdapter.ViewHolder viewHolder = (CalendarAdapter.ViewHolder) calendarRecyclerView.findViewHolderForAdapterPosition(calendarAdapter.getPositionByDate(date));
+        calendarAdapter.setSelectedDate(viewHolder, date);
     }
 }

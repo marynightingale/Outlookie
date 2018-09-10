@@ -1,7 +1,7 @@
 package com.unique.domain.outlookie.agenda;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 public interface AgendaItem {
-    LocalDateTime getDateTime();
+    LocalDate getDate();
 }
